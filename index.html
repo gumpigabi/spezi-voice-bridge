@@ -405,6 +405,14 @@
       }
     });
 
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'FINISH_RECORDING') {
+        finishRecording();
+      } else if (e.data && e.data.type === 'CANCEL_RECORDING') {
+        cancelRecording();
+      }
+    });
+
     // Auto-Start on load
     window.addEventListener('DOMContentLoaded', () => {
       initAndStart();
