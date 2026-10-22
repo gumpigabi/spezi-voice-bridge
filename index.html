@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPEZI Voice Bridge</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(15, 23, 42, 0.85);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.4);
+      --text: #f8fafc;
+      --text-dim: #94a3b8;
+      --border: rgba(56, 189, 248, 0.2);
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+    .bridge-card {
+      width: 100%;
+      max-width: 340px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 25px var(--accent-glow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+    }
+    .header-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      margin-bottom: 14px;
+    }
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 8px var(--red);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .timer-display {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 12px;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+    .status-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+      min-height: 20px;
+    }
+    .waveform-canvas {
+      width: 100%;
+      height: 48px;
+      margin-bottom: 22px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .transcript-preview {
+      font-size: 12px;
+      color: #cbd5e1;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      max-height: 50px;
+      overflow-y: auto;
+      margin-bottom: 18px;
+      width: 100%;
+      text-align: left;
+      font-style: italic;
+      display: none;
+    }
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: none;
+    }
+    .btn-finish {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+    }
+    .btn-finish:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(2, 132, 199, 0.45);
+    }
+    .btn-cancel {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f1f5f9;
+    }
+    .btn-permission {
+      width: 100%;
+      background: #0284c7;
+      color: white;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 8px 20px rgba(2, 132, 199, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bridge-card">
+    <div class="header-tag">
+      <div class="pulse-dot" id="pulseDot"></div>
+      <span id="headerLabel">SPEZI Voice Bridge</span>
+    </div>
+
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="status-text" id="statusText">Aufnahme vorbereiten...</div>
+
+    <canvas class="waveform-canvas" id="waveCanvas" width="300" height="48"></canvas>
+    <div class="transcript-preview" id="transcriptPreview"></div>
+
+    <div id="recordingControls" class="actions-row">
+      <button class="btn btn-cancel" id="cancelBtn" onclick="cancelRecording()">Abbrechen</button>
+      <button class="btn btn-finish" id="finishBtn" onclick="finishRecording()">✓ Fertig & Senden</button>
+    </div>
+
+    <div id="permissionPrompt" style="display: none; width: 100%;">
+      <button class="btn-permission" onclick="initAndStart()">🎙️ Mikrofon erlauben & sprechen</button>
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder = null;
+    let audioStream = null;
+    let audioChunks = [];
+    let audioContext = null;
+    let analyser = null;
+    let animFrame = null;
+    let timerInterval = null;
+    let secondsElapsed = 0;
+    let isFinished = false;
+    let recognition = null;
+    let fullTranscript = '';
+
+    const canvas = document.getElementById('waveCanvas');
+    const canvasCtx = canvas.getContext('2d');
+
+    function updateTimer() {
+      secondsElapsed++;
+      const m = Math.floor(secondsElapsed / 60);
+      const s = secondsElapsed % 60;
+      document.getElementById('timerDisplay').textContent = 
+        (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+    }
+
+    function drawWaveform() {
+      if (!analyser) return;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2.5;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
+        const gradient = canvasCtx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
+        gradient.addColorStop(0, '#00f0ff');
+        gradient.addColorStop(1, '#0284c7');
+
+        canvasCtx.fillStyle = gradient;
+        canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+        x += barWidth + 1;
+      }
+
+      if (!isFinished) {
+        animFrame = requestAnimationFrame(drawWaveform);
+      }
+    }
+
+    function initSpeechRecognition() {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) return;
+      try {
+        recognition = new SpeechRec();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'de-DE';
+
+        recognition.onresult = function(event) {
+          let interim = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              fullTranscript += event.results[i][0].transcript + ' ';
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          const text = (fullTranscript + interim).trim();
+          if (text) {
+            const preview = document.getElementById('transcriptPreview');
+            preview.style.display = 'block';
+            preview.textContent = '„' + text + '“';
+          }
+        };
+        recognition.start();
+      } catch(e) {
+        console.warn('SpeechRecognition init error:', e);
+      }
+    }
+
+    async function initAndStart() {
+      document.getElementById('permissionPrompt').style.display = 'none';
+      document.getElementById('recordingControls').style.display = 'flex';
+      document.getElementById('statusText').textContent = '🎙️ Höre zu... Jetzt sprechen';
+
+      try {
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch(err) {
+        console.error('getUserMedia error:', err);
+        document.getElementById('statusText').textContent = '⚠️ Mikrofon-Zugriff verweigert!';
+        document.getElementById('pulseDot').style.background = '#64748b';
+        document.getElementById('permissionPrompt').style.display = 'block';
+        document.getElementById('recordingControls').style.display = 'none';
+        return;
+      }
+
+      // AudioContext für Live-Waveform
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AudioCtx();
+        const source = audioContext.createMediaStreamSource(audioStream);
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 64;
+        source.connect(analyser);
+        drawWaveform();
+      } catch(e) {
+        console.warn('AudioContext error:', e);
+      }
+
+      // MediaRecorder
+      audioChunks = [];
+      const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
+                   (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+      mediaRecorder = new MediaRecorder(audioStream, mime ? { mimeType: mime } : {});
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        finalizePayload();
+      };
+
+      mediaRecorder.start(100);
+      initSpeechRecognition();
+
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function finishRecording() {
+      if (isFinished) return;
+      isFinished = true;
+      document.getElementById('statusText').textContent = '💾 Verarbeite Sprachaufnahme...';
+      document.getElementById('pulseDot').style.display = 'none';
+      document.getElementById('finishBtn').disabled = true;
+
+      if (timerInterval) clearInterval(timerInterval);
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (recognition) {
+        try { recognition.stop(); } catch(e) {}
+      }
+
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      } else {
+        finalizePayload();
+      }
+    }
+
+    function finalizePayload() {
+      const mime = (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
+      const blob = new Blob(audioChunks, { type: mime });
+      const duration = Math.max(1, secondsElapsed);
+
+      if (blob.size === 0) {
+        sendToOpener({ type: 'VOICE_CANCELLED' });
+        window.close();
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = function() {
+        const base64Audio = reader.result;
+        sendToOpener({
+          type: 'VOICE_CHIP_READY',
+          audioUrl: base64Audio,
+          duration: duration,
+          transcript: fullTranscript.trim()
+        });
+
+        document.getElementById('statusText').textContent = '✓ Gesendet! Fenster schließt...';
+        setTimeout(() => {
+          if (audioStream) {
+            audioStream.getTracks().forEach(t => t.stop());
+          }
+          window.close();
+        }, 500);
+      };
+      reader.readAsDataURL(blob);
+    }
+
+    function cancelRecording() {
+      isFinished = true;
+      if (timerInterval) clearInterval(timerInterval);
+      if (animFrame) cancelAnimationFrame(animFrame);
+      if (recognition) {
+        try { recognition.stop(); } catch(e) {}
+      }
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try { mediaRecorder.stop(); } catch(e) {}
+      }
+      if (audioStream) {
+        try { audioStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+      }
+      sendToOpener({ type: 'VOICE_CANCELLED' });
+      window.close();
+    }
+
+    function sendToOpener(data) {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(data, '*');
+      }
+    }
+
+    // Keyboard Shortcuts (Enter = Finish, Esc = Cancel, Space = Toggle)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        finishRecording();
+      } else if (e.key === 'Escape') {
+        cancelRecording();
+      }
+    });
+
+    // Auto-Start on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initAndStart();
+    });
+  </script>
+</body>
+</html>
